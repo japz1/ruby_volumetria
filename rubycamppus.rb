@@ -177,6 +177,7 @@ when 'coronal'
   `fslswapdim #{bet_image} x -z y #{bet_image}`
 end
 
+
 # PERFORM 'FIRST' SEGMENTATION
 first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp'})
 first.command
