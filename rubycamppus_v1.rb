@@ -37,6 +37,7 @@ end
 option_parser.parse!
 
 dicomdir=options[:dicomdir]
+outputdir=options[:outputdir]
 
 Dir.chdir "#{dicomdir}"
 image = Dir.glob "*.dcm"
@@ -60,7 +61,7 @@ LabelColor = ChunkyPNG::Color.rgb(255,0,0)
 # studyDate = options[:study][3]
 #accessionNo = options[:study][4]
 #dicomdir=options[:dicomdir]
-#outputdir=options[:outputdir]
+
 
 # Decompress NIFTI .gz files
 def decompress(filename)
@@ -161,28 +162,122 @@ dirnewname= Dir.entries(dicomdir).select {|entry| File.directory? File.join(dico
 dirniipath="#{dicomdir}/#{dirnewname[0]}"
 dirniilist=Dir.entries(dirniipath).select {|entry| File.directory? File.join(dirniipath,entry) and !(entry =='.' || entry == '..') }
 pathniilist="#{dirniipath}/#{dirniilist[0]}"
-original_image=Dir["#{pathniilist}*.nii"]
+original_image=Dir["#{pathniilist}/*.nii"]
 
 original_image=original_image[0]
 
 # PERFORM BRAIN EXTRACTION
-#`bet #{original_image} brain -v`
-#`mv brain.nii.gz #{dicomdir}`
+bet = FSL::BET.new(original_image, options[:dicomdir], {fi_threshold: 0.5, v_gradient: 0})
+bet.command
+bet_image = bet.get_result
 
-#case options[:orientation]
-#when 'sagital'
-#  `fslswapdim #{bet_image} -z -x y #{bet_image}`
-#when 'coronal'
-#  `fslswapdim #{bet_image} x -z y #{bet_image}`
-#end
-
-# PERFORM 'fsl_anat' SEGMENTATION
-
-`fsl_anat -i #{original_image}`
+case options[:orientation]
+when 'sagital'
+  `fslswapdim #{bet_image} -z -x y #{bet_image}`
+when 'coronal'
+  `fslswapdim #{bet_image} x -z y #{bet_image}`
+end
 
 
+# PERFORM 'FIRST' SEGMENTATION
+#puts "hola #{options[:outputdir]}"
+first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp,L_Accu,R_Accu'})
+first.command
+first_images = first.get_result
+
+# Get Hippocampal center of gravity coordinates
+cog_coords = FSL::Stats.new(first_images[:origsegs], true, {cog_voxel: true}).command.split
+lh_cog, rh_cog = coord_map(cog_coords)
+puts "Left Hippocampus center of gravity voxel coordinates: #{lh_cog}"
+puts "Right Hippocampus center of gravity voxel coordinates: #{rh_cog}"
+
+# Get Hippocampal volumes
+lhipp_vol_mm = FSL::Stats.new(first_images[:firstseg], false, {low_threshold: LHipp_label - 0.5, up_threshold: LHipp_label + 0.5, voxels_nonzero: true}).command.split[1]
+lhipp_vol = sprintf('%.2f', (lhipp_vol_mm.to_f/1000))
+puts "Left hippocampal volume: #{lhipp_vol}"
+
+rhipp_vol_mm = FSL::Stats.new(first_images[:firstseg], false, {low_threshold: RHipp_label - 0.5, up_threshold: RHipp_label + 0.5, voxels_nonzero: true}).command.split[1]
+rhipp_vol = sprintf('%.2f', (rhipp_vol_mm.to_f/1000))
+puts "Right hippocampal volume: #{rhipp_vol}"
+
+File.open("epicampus.txt", 'a') do |file|
+  file << "#{accessionNo}\t#{lhipp_vol}\t#{rhipp_vol}\n"
+end
+
+# Decompress files
+anatomico_nii = decompress(bet_image)
+hipocampos_nii= decompress(first_images[:firstseg])
+
+# Set  nifti file
+anatomico_3d_nifti = read_nifti(anatomico_nii)
+hipocampos_3d_nifti = read_nifti(hipocampos_nii)
+
+(1..3).each do |sel_dim|
+	# Left Hippocampus
+	sel_slice = lh_cog.values[sel_dim-1]
+ 	lh_anatomico_2d_slice = get_2d_slice(anatomico_3d_nifti, sel_dim, sel_slice, options[:orientation])
+	lh_hipocampos_2d_slice = get_2d_slice(hipocampos_3d_nifti, sel_dim, sel_slice, options[:orientation])
+	# Overlay hippocampus label map and flip for display
+	lh_labeled_png = generate_label_map_png(lh_anatomico_2d_slice, lh_hipocampos_2d_slice, LHipp_label).flip_horizontally!
+	# Save Labeled PNG
+	lh_labeled_png.save("#{options[:outputdir]}/lh_#{sel_dim}_labeled.png")
+
+	# Right Hippocampus
+	sel_slice = rh_cog.values[sel_dim-1]
+ 	rh_anatomico_2d_slice = get_2d_slice(anatomico_3d_nifti, sel_dim, sel_slice, options[:orientation])
+	rh_hipocampos_2d_slice = get_2d_slice(hipocampos_3d_nifti, sel_dim, sel_slice, options[:orientation])
+	# Overlay hippocampus label map and flip for display
+	rh_labeled_png = generate_label_map_png(rh_anatomico_2d_slice, rh_hipocampos_2d_slice, RHipp_label).flip_horizontally!
+	# Save Labeled PNG
+      rh_labeled_png.save("#{options[:outputdir]}/rh_#{sel_dim}_labeled.png")
+end
 
 
+# Generate PDF
+Prawn::Document.generate("#{options[:outputdir]}/report.pdf") do |pdf|
+  # Title
+  pdf.text "Reporte de analisis del volumen hipocampal" , size: 15, style: :bold, :align => :center
+  pdf.move_down 15
+
+  # Report Info
+  #pdf.formatted_text [ { :text => "Codigo: ", :styles => [:bold], size: 10 }, { :text => "#{accessionNo}", size: 10 }]
+  pdf.formatted_text [ { :text => "Nombre del paciente: ", :styles => [:bold], size: 10 }, { :text => "#{patfName} #{patlName}", :styles => [:bold], size: 10 }]
+  pdf.formatted_text [ { :text => "Identificacion del Paciente: ", :styles => [:bold], size: 10 }, { :text => "#{patId}", size: 10 }]
+  pdf.formatted_text [ { :text => "Fecha de nacimiento: ", :styles => [:bold], size: 10 }, { :text => "#{studyDate}", size: 10 }]
+  pdf.move_down 20
+
+  # SubTitle RH
+  pdf.text "Hipocampo Derecho" , size: 13, style: :bold, :align => :center
+  pdf.move_down 5
+
+  # Images RH
+  pdf.image "#{options[:outputdir]}/rh_3_labeled.png", :width => 200, :height => 200, :position => 95
+  pdf.move_up 200
+  pdf.image "#{options[:outputdir]}/rh_2_labeled.png", :width => 150, :height => 100, :position => 295
+  pdf.image "#{options[:outputdir]}/rh_1_labeled.png", :width => 150, :height => 100, :position => 295
+  pdf.move_down 20
+
+  # SubTitle LH
+  pdf.text "Hipocampo izquierdo" , size: 13, style: :bold, :align => :center
+  pdf.move_down 5
+
+  # Images LH
+  pdf.image "#{options[:outputdir]}/lh_3_labeled.png", :width => 200, :height => 200, :position => 95
+  pdf.move_up 200
+  pdf.image "#{options[:outputdir]}/lh_2_labeled.png", :width => 150, :height => 100, :position => 295
+  pdf.image "#{options[:outputdir]}/lh_1_labeled.png", :width => 150, :height => 100, :position => 295
+  pdf.move_down 40
+
+  #Volumes Table New
+
+  volumesTable = [["Volumen del hipocampo derecho:  #{rhipp_vol} cm3", "Volumen del hipocampo izquierdo:  #{lhipp_vol} cm3"]]
+  pdf.table volumesTable, column_widths: [270,270], cell_style:  {padding: 12, height: 40}
+  # Volumes Table
+  #pdf.table([ ["Volumen del hipocampo derecho", "#{rhipp_vol} cm3"],
+  #   
+
+
+end
 
 end_time = Time.now
 puts "Time elapsed #{(end_time - beginning_time)} seconds"

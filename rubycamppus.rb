@@ -37,6 +37,7 @@ end
 option_parser.parse!
 
 dicomdir=options[:dicomdir]
+outputdir=options[:outputdir]
 
 Dir.chdir "#{dicomdir}"
 image = Dir.glob "*.dcm"
@@ -60,7 +61,7 @@ LabelColor = ChunkyPNG::Color.rgb(255,0,0)
 # studyDate = options[:study][3]
 #accessionNo = options[:study][4]
 #dicomdir=options[:dicomdir]
-#outputdir=options[:outputdir]
+
 
 # Decompress NIFTI .gz files
 def decompress(filename)
@@ -179,7 +180,8 @@ end
 
 
 # PERFORM 'FIRST' SEGMENTATION
-first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp'})
+#puts "hola #{options[:outputdir]}"
+first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp,L_Accu,R_Accu'})
 first.command
 first_images = first.get_result
 
