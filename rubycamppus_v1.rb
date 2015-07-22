@@ -53,6 +53,20 @@ patlName = patName[0,patName =~ /\^/]
 
 LHipp_label = 17
 RHipp_label = 53
+LAccu_label = 26
+RAccu_label = 58
+LAmyg_label = 18
+RAmyg_label = 54
+LCaud_label = 11
+RCaud_label = 50
+LPall_label = 13
+RPall_label = 52
+LPuta_label = 12
+RPuta_label = 51
+LThal_label = 10
+RThal_label = 49
+
+
 LabelColor = ChunkyPNG::Color.rgb(255,0,0)
 
 # patfName = options[:study][0]
@@ -138,18 +152,74 @@ def generate_png_slice(nii_file, dim, slice)
 end
 
 def coord_map(coord)
-  lh = {}
-  rh = {}
+  lh = {} #LHipp_label
+  rh = {} #RHipp_label
+  lac = {} #LAccu_label
+  rac = {} #RAccu_label
+  lam = {} #LAmyg_label
+  ram = {} #RAmyg_label
+  lca = {} #LCaud_label
+  rca = {} #RCaud_label 
+  lpa = {} #LPall_label
+  rpa = {} #RPall_label 
+  lpu = {} #LPuta_label
+  rpu = {} #RPuta_label
+  lth = {} #LThal_label
+  rha = {} #RThal_label
+
+
   axis = ["x", "y", "z"]
 
   (0..2).each do |i|
     lh[axis[i]] = coord[i].to_i.round
   end
-
   (3..5).each do |i|
     rh[axis[i-3]] = coord[i].to_i.round
   end
-  return [lh,rh]
+
+  (6..8).each do |i|
+    lac[axis[i]] = coord[i].to_i.round
+  end
+  (9..11).each do |i|
+    rac[axis[i-3]] = coord[i].to_i.round
+  end
+
+  (12..14).each do |i|
+    lam[axis[i]] = coord[i].to_i.round
+  end
+  (15..17).each do |i|
+    ram[axis[i-3]] = coord[i].to_i.round
+  end
+
+  (18..20).each do |i|
+    lca[axis[i]] = coord[i].to_i.round
+  end
+  (21..23).each do |i|
+    rca[axis[i-3]] = coord[i].to_i.round
+  end
+
+  (24..26).each do |i|
+    lpa[axis[i]] = coord[i].to_i.round
+  end
+  (27..29).each do |i|
+    rpa[axis[i-3]] = coord[i].to_i.round
+  end
+
+  (30..32).each do |i|
+    lpu[axis[i]] = coord[i].to_i.round
+  end
+  (33..35).each do |i|
+    rpu[axis[i-3]] = coord[i].to_i.round
+  end
+
+  (36..38).each do |i|
+    lth[axis[i]] = coord[i].to_i.round
+  end
+  (39..41).each do |i|
+    rth[axis[i-3]] = coord[i].to_i.round
+  end
+
+  return [lh,rh,lac,rac,lam,ram,lca,rca,lpa,rpa,lpu,rpu,lth,rth]
 end
 #### END METHODS ####
 
@@ -181,13 +251,13 @@ end
 
 # PERFORM 'FIRST' SEGMENTATION
 #puts "hola #{options[:outputdir]}"
-first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp,L_Accu,R_Accu'})
+first = FSL::FIRST.new(bet_image, options[:outputdir]+'/test_brain_FIRST', {already_bet:true, structure: 'L_Hipp,R_Hipp,L_Accu,R_Accu,L_Amyg,R_Amyg,L_Caud,R_Caud,L_Pall,R_Pall,L_Puta,R_Puta,L_Thal,R_Thal'})
 first.command
 first_images = first.get_result
 
-# Get Hippocampal center of gravity coordinates
+# Get center of gravity coordinates
 cog_coords = FSL::Stats.new(first_images[:origsegs], true, {cog_voxel: true}).command.split
-lh_cog, rh_cog = coord_map(cog_coords)
+lh_cog, rh_cog, lac_cog, rac_cog, lam_cog, ram_cog, lca_cog, rca_cog, lpa_cog, rpa_cog, lpu_cog, rpu_cog, lth_cog, rth_cog = coord_map(cog_coords)
 puts "Left Hippocampus center of gravity voxel coordinates: #{lh_cog}"
 puts "Right Hippocampus center of gravity voxel coordinates: #{rh_cog}"
 
