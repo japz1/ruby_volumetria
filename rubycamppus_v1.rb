@@ -28,7 +28,7 @@ option_parser = OptionParser.new do |opts|
     options[:orientation] = orientation
   end
 
-  opts.on("-e STRUCTURE", "Select main structure, e.g. Hipocampo, Núcleo Accumbens, Amígdala, Núcleo Caudado, Globo Pálido, Putamen, Tálamo") do |structure|
+  opts.on("-s STRUCTURE", "Select main structure, e.g. Hipocampo, Núcleo Accumbens, Amígdala, Núcleo Caudado, Globo Pálido, Putamen, Tálamo") do |structure|
     options[:main_structure] = structure
   end
 
@@ -39,6 +39,17 @@ option_parser = OptionParser.new do |opts|
 end
 
 option_parser.parse!
+
+if options[:main_structure] == nil
+  puts "Escribe en que estructura te gustaría que saliera el reporte de todo los volumenes subcorticáles y luego oprime enter "
+  puts "e.g. Hipocampo, Núcleo Accumbens, Amígdala, Núcleo Caudado, Globo Pálido, Putamen, Tálamo"
+  STDOUT.flush  
+  options[:main_structure] = gets.chomp
+end
+
+
+
+
 
 dicomdir=options[:dicomdir]
 outputdir=options[:outputdir]
@@ -297,7 +308,7 @@ def create_pdf(patfName,patlName,patId,studyDate,options,l_label,r_label,l_volum
 
     if structure_names[structure] == options[:main_structure]
       pdf.start_new_page
-      pdf.text "Reporte de analisis volumétrico: #{structure_names[structure].capitalize}" , size: 15, style: :bold, :align => :center
+      pdf.text "Reporte de analisis volumétrico", size: 15, style: :bold, :align => :center
       pdf.move_down 15
       pdf.formatted_text [ { :text => "Nombre del paciente: ", :styles => [:bold], size: 10 }, { :text => "#{patfName} #{patlName}", :styles => [:bold], size: 10 }]
       pdf.formatted_text [ { :text => "Identificacion del Paciente: ", :styles => [:bold], size: 10 }, { :text => "#{patId}", size: 10 }]
@@ -307,13 +318,13 @@ def create_pdf(patfName,patlName,patId,studyDate,options,l_label,r_label,l_volum
       pdf.text "Segmentación de estructuras subcorticales" , size: 13, style: :bold, :align => :center
       pdf.move_down 5
 
-      pdf.image "#{options[:outputdir]}/all_labels_3_labeled.png", :width => 200, :height => 200, :position => 95
-      pdf.move_up 200
-      pdf.image "#{options[:outputdir]}/all_labels_2_labeled.png", :width => 150, :height => 100, :position => 295
-      pdf.image "#{options[:outputdir]}/all_labels_1_labeled.png", :width => 150, :height => 100, :position => 295
+      pdf.image "#{options[:outputdir]}/all_labels_3_labeled.png", :width => 300, :height => 300, :position => 30
+      pdf.move_up 300
+      pdf.image "#{options[:outputdir]}/all_labels_2_labeled.png", :width => 225, :height => 150, :position => 285
+      pdf.image "#{options[:outputdir]}/all_labels_1_labeled.png", :width => 225, :height => 150, :position => 285
       pdf.move_down 20
 
-      all_volumesTable = [["Estructura ", "Volumen total cm3", " Volumen derecho cm3", "Volumen izquierdo cm3", "Indice de Asimetría"],
+      all_volumesTable = [["<b>Estructura</b> ", "<b>Volumen total</b>", "<b>Volumen derecho</b>", "<b>Volumen izquierdo</b>", "<b>Indice de Asimetría</b>"],
                           ["Hipocampo", "#{(all_volumes[:lhipp_vol].to_f+all_volumes[:rhipp_vol].to_f).round(2)}","#{all_volumes[:rhipp_vol]}","#{all_volumes[:lhipp_vol]}", sprintf("%.4f",all_index_A[0]) ],
                           ["Amígdala", "#{(all_volumes[:lamyg_vol].to_f + all_volumes[:ramyg_vol].to_f).round(2)}","#{all_volumes[:ramyg_vol]}","#{all_volumes[:lamyg_vol]}", sprintf("%.4f",all_index_A[2]) ],
                           ["Núcleo Accumbens", "#{(all_volumes[:laccu_vol].to_f+all_volumes[:raccu_vol].to_f).round(2)}","#{all_volumes[:raccu_vol]}","#{all_volumes[:laccu_vol]}", sprintf("%.4f",all_index_A[1]) ],
@@ -322,7 +333,12 @@ def create_pdf(patfName,patlName,patId,studyDate,options,l_label,r_label,l_volum
                           ["Putamen", "#{(all_volumes[:lputa_vol].to_f+all_volumes[:rputa_vol].to_f).round(2)}","#{all_volumes[:rputa_vol]}","#{all_volumes[:lputa_vol]}", sprintf("%.4f",all_index_A[5]) ],
                           ["Tálamo", "#{(all_volumes[:ltha_vol].to_f+all_volumes[:rtha_vol].to_f).round(2)}","#{all_volumes[:rtha_vol]}","#{all_volumes[:ltha_vol]}", sprintf("%.4f",all_index_A[6]) ]
                           ]
-      pdf.table all_volumesTable, cell_style:  {padding: 12, height: 40}
+      pdf.table all_volumesTable, :position => :center, :cell_style => {align: :center, :inline_format => true, :size => 12} 
+
+      pdf.move_down 60
+      pdf.text "* Todos los volumenes son presentandos en centímetros cúbicos" , size: 8, :align => :center
+      pdf.text "* El indice de asimetría es caldulado con la diferencia entre el volumen derecho menos el volumen izquierdo dividido por la media" , size: 8, :align => :center
+
 
     end
   end
