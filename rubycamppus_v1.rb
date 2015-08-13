@@ -47,10 +47,6 @@ if options[:main_structure] == nil
   options[:main_structure] = gets.chomp
 end
 
-
-
-
-
 dicomdir=options[:dicomdir]
 outputdir=options[:outputdir]
 
@@ -93,13 +89,6 @@ LabelColorPadillum = ChunkyPNG::Color.rgb(12,48,255)
 LabelColorHippocampus = ChunkyPNG::Color.rgb(220,216,20)
 LabelColorAmygdala = ChunkyPNG::Color.rgb(103,255,255)
 LabelColorAccumbens = ChunkyPNG::Color.rgb(255,165,0)
-
-# patfName = options[:study][0]
-# patlName = options[:study][1]
-# patId = options[:study][2]
-# studyDate = options[:study][3]
-#accessionNo = options[:study][4]
-#dicomdir=options[:dicomdir]
 
 
 # Decompress NIFTI .gz files
