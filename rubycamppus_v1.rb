@@ -326,7 +326,7 @@ def create_pdf(patfName,patlName,patId,studyDate,options,l_label,r_label,l_volum
 
       pdf.move_down 60
       pdf.text "* Todos los volumenes son presentandos en centímetros cúbicos" , size: 8, :align => :center
-      pdf.text "* El indice de asimetría es calculado como la diferencia entre el volumen derecho menos el volúmen izquierdo dividido por la media" , size: 8, :align => :center
+      pdf.text "* El indice de asimetría es calculado como la diferencia entre el volumen derecho menos el volumen izquierdo dividido por la media" , size: 8, :align => :center
 
 
     end
